@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fashion_app/widgets/product_card.dart';
 import 'package:fashion_app/features/product/screens/product_detail.dart';
+import 'package:dio/dio.dart';
+
+final Dio dio = Dio();
 
 class ProductListPage extends StatefulWidget {
   final String categorySlug;
@@ -48,9 +51,6 @@ class _ProductListPageState extends State<ProductListPage> {
     );
     final response = await http.get(url, headers: {"isGuest": "true"});
 
-    debugPrint("📦 [PL API] Status: ${response.statusCode}");
-    debugPrint("🛍️ [PL API] Body: ${response.body}");
-
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final items = data['content']?[0]?['lineItems'] ?? [];
@@ -69,6 +69,15 @@ class _ProductListPageState extends State<ProductListPage> {
     }
   }
 
+  Future<void> refreshProducts() async {
+    setState(() {
+      currentPage = 1;
+      products.clear();
+      isLastPage = false;
+    });
+    await fetchProducts();
+  }
+
   void onSortChanged(String value) {
     setState(() {
       selectedSort = value;
@@ -79,9 +88,46 @@ class _ProductListPageState extends State<ProductListPage> {
     fetchProducts();
   }
 
+  Future<void> addToWishlist(String productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login required to add to wishlist')),
+      );
+      return;
+    }
+
+    final url =
+        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/item/$productId';
+
+    final response = await dio.post(
+      url,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Added to wishlist')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to add to wishlist')),
+      );
+    }
+  }
+
   Future<void> addToCart(String productId) async {
     final prefs = await SharedPreferences.getInstance();
     final cartId = prefs.getString('cartId');
+    final token = prefs.getString('accessToken');
 
     if (cartId == null) {
       ScaffoldMessenger.of(
@@ -95,12 +141,12 @@ class _ProductListPageState extends State<ProductListPage> {
 
     final response = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: {
+        "Content-Type": "application/json",
+        'Authorization': 'Bearer $token',
+      },
       body: body,
     );
-
-    debugPrint("🛒 [Add to Cart] Status: ${response.statusCode}");
-    debugPrint("🛒 [Add to Cart] Body: ${response.body}");
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(
@@ -116,33 +162,27 @@ class _ProductListPageState extends State<ProductListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(widget.categoryName),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         actions: [
           PopupMenuButton<String>(
             onSelected: onSortChanged,
             itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'newestFirst',
-                    child: Text('Newest'),
-                  ),
-                  const PopupMenuItem(
+                (context) => const [
+                  PopupMenuItem(value: 'newestFirst', child: Text('Newest')),
+                  PopupMenuItem(
                     value: 'priceLowToHigh',
                     child: Text('Price - Low to High'),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'priceHighToLow',
                     child: Text('Price - High to Low'),
                   ),
-                  const PopupMenuItem(
-                    value: 'nameAsc',
-                    child: Text('Name A-Z'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'nameDesc',
-                    child: Text('Name Z-A'),
-                  ),
+                  PopupMenuItem(value: 'nameAsc', child: Text('Name A-Z')),
+                  PopupMenuItem(value: 'nameDesc', child: Text('Name Z-A')),
                 ],
             child: Row(
               children: const [
@@ -155,57 +195,63 @@ class _ProductListPageState extends State<ProductListPage> {
           ),
         ],
       ),
-      body:
-          isLoading && products.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : products.isEmpty
-              ? const Center(child: Text("No products found."))
-              : GridView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.75,
-                ),
-                itemCount: products.length + (isLoading ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= products.length) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final item = products[index];
-                  final price = item['salePrice'] ?? item['price'] ?? '0';
-                  final imageUrl =
-                      item['image'] is String
-                          ? item['image']
-                          : item['image']?['imageURI'];
-
-                  return ProductCard(
-                    imageUrl: imageUrl,
-                    name: item['name'],
-                    price: price.toString(),
-                    originalPrice: item['price']?.toString(),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) =>
-                                  ProductDetailPage(productSlug: item['slug']),
+      body: RefreshIndicator(
+        onRefresh: refreshProducts,
+        child: Container(
+          color: Colors.white,
+          child:
+              isLoading && products.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : products.isEmpty
+                  ? const Center(child: Text("No products found."))
+                  : GridView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.59,
                         ),
+                    itemCount: products.length + (isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= products.length) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final item = products[index];
+                      return ProductCard(
+                        imageUrl: item['image']['imageURI'],
+                        brand: item['brand'] ?? '',
+                        name: item['name'],
+                        price: item['formattedSalePrice'],
+                        originalPrice: item['formattedPrice'],
+                        isWishlisted: false,
+                        itemId:
+                            item['id']
+                                .toString(), // Pass the itemId for the RatingWidget
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => ProductDetailPage(
+                                    productSlug: item['slug'],
+                                  ),
+                            ),
+                          );
+                        },
+                        onAddToCart: () {
+                          addToCart(item['id'].toString());
+                        },
+                        onWishlistToggle: () {
+                          addToWishlist(item['id'].toString());
+                        },
                       );
                     },
-                    onAddToCart: () {
-                      addToCart(item['id'].toString());
-                    },
-                    onWishlistToggle: () {
-                      // TODO: Toggle wishlist
-                    },
-                    isWishlisted: false,
-                  );
-                },
-              ),
+                  ),
+        ),
+      ),
     );
   }
 

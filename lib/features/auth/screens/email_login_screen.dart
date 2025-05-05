@@ -6,6 +6,7 @@ import 'package:fashion_app/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fashion_app/features/main/screens/main_screen.dart';
 import 'package:fashion_app/features/auth/screens/otp_mobile_input_screen.dart';
+import 'package:lottie/lottie.dart';
 
 class EmailLoginScreen extends StatefulWidget {
   const EmailLoginScreen({super.key});
@@ -19,6 +20,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoggingIn = false;
 
   @override
   void dispose() {
@@ -29,21 +31,20 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoggingIn = true);
       final response = await AuthService.login(
-        email: emailController.text,
+        email: emailController.text.trim(),
         password: passwordController.text,
       );
-
-      print('🔐 [LOGIN] Status: ${response.statusCode}');
-      print('📦 [LOGIN] Body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
+
         await prefs.setString('accessToken', data['token']);
         await prefs.setString('refreshToken', data['refreshToken']);
-        await prefs.setInt('customerId', data['customerId']);
+        await prefs.setString('userId', data['customerId'].toString());
         await prefs.setString('cartId', data['cartId']);
         await prefs.setString('wishlistId', data['wishlistId']);
         await prefs.setString('email', data['email']);
@@ -52,7 +53,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         await prefs.setString('phoneNumber', data['phoneNumber']);
         await prefs.setBool('isLoggedIn', true);
 
-        // Navigate to home screen and clear stack
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -63,160 +64,151 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           SnackBar(content: Text(data['message'] ?? 'Login failed')),
         );
       }
+      setState(() => _isLoggingIn = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                const Text(
-                  'Login',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 32),
-
-                // Email Input
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  Lottie.asset('assets/animated_logo.json', width: 250),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Welcome Back 👋",
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(value)) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Login to continue",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 32),
 
-                const SizedBox(height: 16),
-
-                // Password Input with toggle
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                  TextFormField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      hintText: 'Email',
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Enter email';
+                      if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(value))
+                        return 'Invalid email';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed:
+                            () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty)
+                        return 'Enter password';
+                      return null;
+                    },
+                  ),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
                       onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        );
                       },
+                      child: const Text('Forgot Password?'),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    return null;
-                  },
-                ),
 
-                // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoggingIn ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          255,
+                          255,
+                          255,
+                        ),
+                      ),
+                      child:
+                          _isLoggingIn
+                              ? const CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              )
+                              : const Text(
+                                "Login",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                  TextButton(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const ForgotPasswordScreen(),
+                          builder: (_) => const OtpMobileInputScreen(),
                         ),
                       );
                     },
-                    child: const Text('Forgot Password?'),
+                    child: const Text('Login with OTP'),
                   ),
-                ),
 
-                const SizedBox(height: 8),
-
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.teal,
-                    ),
-                    onPressed: _submit,
-                    child: const Text('Login'),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignupScreen()),
+                      );
+                    },
+                    child: const Text("Don't have an account? Sign Up"),
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Social login
-                const Text(
-                  'Or login with',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.facebook, color: Colors.blue),
-                      iconSize: 32,
-                      onPressed: () {
-                        // TODO: Facebook login
-                      },
-                    ),
-                    const SizedBox(width: 32),
-                    IconButton(
-                      icon: const Icon(Icons.g_mobiledata, color: Colors.red),
-                      iconSize: 40,
-                      onPressed: () {
-                        // TODO: Google login
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Login with OTP
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const OtpMobileInputScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text('Login with OTP'),
-                ),
-
-                // Sign Up Button
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignupScreen()),
-                    );
-                  },
-                  child: const Text("Don't have an account? Sign Up"),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

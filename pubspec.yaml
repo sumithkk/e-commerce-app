@@ -35,8 +35,19 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   carousel_slider: ^5.0.0
-  http: ^0.13.6
+  http: ^1.1.0
   shared_preferences: ^2.2.2
+  dio: ^5.3.3
+  chucker_flutter: ^1.4.0
+  win32: ^5.3.0
+  lottie: ^2.7.0
+  flutter_slidable: ^3.0.0
+  shimmer: ^3.0.0
+  sms_autofill: ^2.3.0
+  google_fonts: ^6.1.0
+  flutter_typeahead: ^5.2.0
+  flutter_keyboard_visibility: ^6.0.0
+
 
 
 
@@ -61,7 +72,37 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/empty_wishlist.json
+    - assets/empty_address.json
+    - assets/animated_logo.json
+    - assets/otp_animation.json
+    - assets/banner1.jpg
+    - assets/banner2.jpg
+    - assets/banner3.jpg
+    - assets/banner4.jpg
+    - assets/banner5.jpg
+    - assets/product1.jpg
+    - assets/product2.jpg
+    - assets/product3.jpg
+    - assets/product4.jpg
+    - assets/product5.jpg
+    - assets/product6.jpg
+    - assets/product7.jpg
+    - assets/product8.jpg
+    - assets/product9.jpg
+    - assets/product10.jpg
+    - assets/product11.jpg
+    - assets/product12.jpg
+    - assets/product13.jpg
+    - assets/product14.jpg
+    - assets/product15.jpg
+    - assets/product16.jpg
+    - assets/product17.jpg
+    - assets/product18.jpg
+    - assets/logo.png
 
+    
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -92,3 +133,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: Quicksand
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+          weight: 300
+        - asset: assets/fonts/Nunito-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 500

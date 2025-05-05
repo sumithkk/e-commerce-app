@@ -27,8 +27,8 @@ class AuthService {
       }),
     );
 
-    print('🔐 [REGISTER] Status: \${response.statusCode}');
-    print('📦 [REGISTER] Body: \${response.body}');
+    print('🔐 [REGISTER] Status: ${response.statusCode}');
+    print('📦 [REGISTER] Body: ${response.body}');
 
     return response;
   }

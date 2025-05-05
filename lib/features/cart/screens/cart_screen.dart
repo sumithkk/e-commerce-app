@@ -1,6 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:fashion_app/services/cart_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:lottie/lottie.dart';
+import 'package:fashion_app/services/custom_dio.dart';
+import 'package:fashion_app/features/auth/screens/email_login_screen.dart';
+import 'package:fashion_app/features/product/screens/product_detail.dart';
+import 'package:http/http.dart' as http;
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -10,10 +17,15 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  Map<String, dynamic>? cartData;
+  final Dio dio = CustomDio.instance;
+  List<dynamic> cartItems = [];
+  String subtotal = '';
+  String shipping = '';
+  String discount = '';
+  String total = '';
   bool isLoading = true;
-  final couponController = TextEditingController();
-  final Map<int, TextEditingController> qtyControllers = {};
+  bool isApplyingCoupon = false;
+  final TextEditingController couponController = TextEditingController();
 
   @override
   void initState() {
@@ -21,336 +33,604 @@ class _CartScreenState extends State<CartScreen> {
     fetchCart();
   }
 
+  Future<void> logoutAndRedirect() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const EmailLoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   Future<void> fetchCart() async {
-    final response = await CartService.getCart();
-    if (response.statusCode == 200) {
-      setState(() {
-        cartData = jsonDecode(response.body);
-        isLoading = false;
-      });
-    } else {
-      print('❌ Failed to load cart: ${response.statusCode}');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    final cartId = prefs.getString('cartId');
+
+    debugPrint("\u{1F4EC} [Cart] Status: $token");
+    debugPrint("\u{1F4C4} [Cart] Body: $cartId");
+
+    final url = 'http://57.128.166.138:2000/api/v1/cart/$cartId';
+
+    debugPrint("\u{1F4C4} [Cart url ====================] Body: $url");
+
+    try {
+      final response = await dio.get(
+        url,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      debugPrint("\u{1F4EC} [Cart] Status: ${response.statusCode}");
+      debugPrint("\u{1F4C4} [Cart] Body: ${jsonEncode(response.data)}");
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        setState(() {
+          cartItems = data['lineItems'] ?? [];
+          subtotal = formatPrice(data['cartTotal']['subTotal']);
+          shipping = formatPrice(data['cartTotal']['shippingCharges']);
+          discount = formatPrice(data['cartTotal']['couponDiscount']);
+          total = formatPrice(data['cartTotal']['total']);
+          isLoading = false;
+        });
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logoutAndRedirect();
+      }
       setState(() => isLoading = false);
     }
   }
 
-  void showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  String formatPrice(dynamic value) {
+    final parsed = double.tryParse(value.toString()) ?? 0;
+    return parsed == parsed.roundToDouble()
+        ? parsed.toInt().toString()
+        : parsed.toStringAsFixed(2);
   }
 
-  Future<void> _updateQty(int id, int newQty) async {
-    final cartId = cartData?['id'];
-    if (newQty <= 0) return;
+  Future<void> removeFromCart(int itemId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartId = prefs.getString('cartId');
+    final token = prefs.getString('accessToken');
 
-    final res = await CartService.updateCartItemQuantity(
-      cartId: cartId,
-      itemId: id,
-      quantity: newQty,
-    );
+    if (token == null || cartId == null) return;
 
-    if (res.statusCode == 200) {
-      setState(() => qtyControllers[id]?.text = newQty.toString());
-      await fetchCart();
-      showSnack("Quantity updated");
-    } else {
-      showSnack("❌ Failed to update");
+    final url = 'http://57.128.166.138:2000/api/v1/cart/$cartId/remove/$itemId';
+    try {
+      await dio.delete(
+        url,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      fetchCart();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logoutAndRedirect();
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final lineItems = cartData?['lineItems'] ?? [];
-    final totals = cartData?['cartTotal'] ?? {};
+  Future<void> moveToWishlist(int itemId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('accessToken');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("My Cart")),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : cartData == null
-              ? const Center(child: Text("Failed to load cart"))
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    if (lineItems.isNotEmpty)
-                      Expanded(child: _buildCartList(lineItems)),
-                    if (lineItems.isEmpty) _buildEmptyState(),
-                    const SizedBox(height: 16),
-                    if (lineItems.isNotEmpty) _buildCouponInput(),
-                    if (lineItems.isNotEmpty) _buildCartSummary(totals),
-                    if (lineItems.isNotEmpty) _buildCheckoutButton(),
-                  ],
-                ),
-              ),
-    );
+    if (userId == null || token == null) return;
+
+    final url =
+        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/item/$itemId';
+    try {
+      await dio.post(
+        url,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      removeFromCart(itemId);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logoutAndRedirect();
+      }
+    }
   }
 
-  Widget _buildCartList(List<dynamic> items) {
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final id = item['id'];
-        qtyControllers[id] ??= TextEditingController(
-          text: item['quantity'].toString(),
-        );
+  Future<void> applyCoupon() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartId = prefs.getString('cartId');
+    final email = prefs.getString('email');
+    final token = prefs.getString('accessToken');
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                item['image'] != null
-                    ? Image.network(
-                      item['image']['imageURI'],
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                    )
-                    : const Icon(Icons.image, size: 60),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['name'] ?? 'Product',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () {
-                              final currentQty =
-                                  int.tryParse(
-                                    qtyControllers[id]?.text ?? '1',
-                                  ) ??
-                                  1;
-                              if (currentQty > 1) {
-                                _updateQty(id, currentQty - 1);
-                              }
-                            },
-                          ),
-                          SizedBox(
-                            width: 40,
-                            child: TextFormField(
-                              controller: qtyControllers[id],
-                              textAlign: TextAlign.center,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(isDense: true),
-                              onFieldSubmitted: (val) {
-                                final qty = int.tryParse(val);
-                                if (qty != null && qty > 0) {
-                                  _updateQty(id, qty);
-                                }
-                              },
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: () {
-                              final currentQty =
-                                  int.tryParse(
-                                    qtyControllers[id]?.text ?? '1',
-                                  ) ??
-                                  1;
-                              _updateQty(id, currentQty + 1);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () async {
-                              final cartId = cartData?['id'];
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder:
-                                    (_) => AlertDialog(
-                                      title: const Text("Remove Item"),
-                                      content: const Text(
-                                        "Are you sure you want to remove this item?",
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () =>
-                                                  Navigator.pop(context, false),
-                                          child: const Text("Cancel"),
-                                        ),
-                                        TextButton(
-                                          onPressed:
-                                              () =>
-                                                  Navigator.pop(context, true),
-                                          child: const Text("Remove"),
-                                        ),
-                                      ],
-                                    ),
-                              );
-                              if (confirm == true) {
-                                final res = await CartService.removeCartItem(
-                                  cartId,
-                                  item['id'],
-                                );
-                                if (res.statusCode == 200) {
-                                  showSnack("Item removed successfully");
-                                  await fetchCart();
-                                } else {
-                                  showSnack("Failed to remove item");
-                                }
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text("₹${item['salePrice'].toStringAsFixed(2)}"),
-              ],
-            ),
+    if (cartId == null ||
+        email == null ||
+        token == null ||
+        couponController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Missing fields')));
+      return;
+    }
+
+    setState(() => isApplyingCoupon = true);
+
+    final url = 'http://57.128.166.138:2000/api/v1/cart/apply-coupon';
+
+    try {
+      final response = await dio.post(
+        url,
+        data: {
+          "cartId": cartId,
+          "couponName": couponController.text.trim(),
+          "mode": "web",
+          "email": email,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Coupon applied successfully!')),
+        );
+        fetchCart();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.data['message'] ?? 'Failed to apply coupon'),
           ),
         );
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logoutAndRedirect();
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to apply coupon')));
+    } finally {
+      setState(() => isApplyingCoupon = false);
+    }
+  }
+
+  Future<void> addToCart(String productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartId = prefs.getString('cartId');
+    final token = prefs.getString('accessToken');
+    if (cartId == null) return;
+
+    final response = await http.post(
+      Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/add"),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
       },
+      body: jsonEncode({"id": int.parse(productId), "quantity": 1}),
     );
+    if (!mounted) return;
+    setState(() {
+      isLoading = false;
+    });
+
+    if (response.statusCode == 200) {
+      fetchCart(); // Refresh the UI
+    }
   }
 
-  Widget _buildCouponInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Apply Coupon",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: couponController,
-                decoration: const InputDecoration(
-                  hintText: "Enter coupon code",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () async {
-                final code = couponController.text.trim();
-                final cartId = cartData?['id'];
-                final email = cartData?['email'] ?? 'svk@gravityer.com';
-                if (code.isEmpty || cartId == null) {
-                  showSnack("Enter a valid coupon and ensure cart is loaded.");
-                  return;
-                }
-                final response = await CartService.applyCoupon(
-                  cartId: cartId,
-                  couponName: code,
-                  email: email,
-                );
-                if (response.body.isNotEmpty) {
-                  final result = jsonDecode(response.body);
-                  if (response.statusCode == 200 && result['success'] == true) {
-                    showSnack("🎁 Coupon Applied Successfully!");
-                    await fetchCart();
-                  } else {
-                    showSnack(result['message'] ?? "❌ Failed to apply coupon");
-                  }
-                } else {
-                  showSnack("❌ Failed to apply coupon. No response body.");
-                }
-              },
-              child: const Text("Apply"),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ],
+  Future<void> decrementCart(String productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartId = prefs.getString('cartId');
+    final token = prefs.getString('accessToken');
+    if (cartId == null) return;
+
+    final response = await http.post(
+      Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/remove"),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({"id": int.parse(productId), "quantity": 1}),
     );
+
+    if (response.statusCode == 200) {
+      fetchCart(); // Refresh the UI
+    }
   }
 
-  Widget _buildCartSummary(Map<String, dynamic> totals) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(),
-        _summaryRow("Subtotal", totals['formattedSubTotal']),
-        _summaryRow("Shipping", totals['formattedShippingCharges']),
-        _summaryRow("Tax", totals['formattedTax']),
-        _summaryRow("Coupon Discount", totals['formattedCouponDiscount']),
-        const Divider(),
-        _summaryRow("Total", totals['formattedTotal'], isBold: true),
-      ],
-    );
-  }
-
-  Widget _summaryRow(String label, dynamic value, {bool isBold = false}) {
+  Widget _buildPriceRow(String label, String value, {bool bold = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: isBold ? const TextStyle(fontWeight: FontWeight.bold) : null,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
           Text(
-            "₹$value",
-            style:
-                isBold
-                    ? const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
-                    : null,
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCheckoutButton() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.payment),
-          label: const Text("Proceed to Checkout"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: () {
-            showSnack("Proceeding to checkout (mock only)");
-          },
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text("My Cart"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: RefreshIndicator(
+        onRefresh: fetchCart, // 🌀 Pull to refresh
+        child:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                  children: [
+                    Expanded(
+                      child:
+                          cartItems.isEmpty
+                              ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Lottie.asset(
+                                      'assets/empty_wishlist.json',
+                                      width: 250,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      "Your cart is empty",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              : ListView.separated(
+                                itemCount: cartItems.length,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                separatorBuilder:
+                                    (_, __) => Divider(
+                                      height: 0,
+                                      color: Colors.grey.shade200,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final item = cartItems[index];
+                                  final isOutOfStock =
+                                      item['isStockStatus'] == false;
+                                  final discount = item['discount'] ?? 0;
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ProductDetailPage(
+                                                productSlug: item['slug'],
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: Slidable(
+                                      key: ValueKey(item['id']),
+                                      endActionPane: ActionPane(
+                                        motion: const DrawerMotion(),
+                                        children: [
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) => moveToWishlist(
+                                                  item['item']?['id'] ??
+                                                      item['id'],
+                                                ),
+                                            backgroundColor: Colors.orange,
+                                            foregroundColor: Colors.white,
+                                            icon: Icons.favorite_border,
+                                            label: 'Wishlist',
+                                          ),
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) =>
+                                                    removeFromCart(item['id']),
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white,
+                                            icon: Icons.delete,
+                                            label: 'Delete',
+                                          ),
+                                        ],
+                                      ),
+                                      child: Container(
+                                        color: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Stack(
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  child: Image.network(
+                                                    item['image']['imageURI'],
+                                                    width: 80,
+                                                    height: 80,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                ),
+                                                if (isOutOfStock)
+                                                  Positioned.fill(
+                                                    child: Center(
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.black
+                                                              .withOpacity(0.7),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        child: const Text(
+                                                          "OUT OF STOCK",
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 10,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    "${item['brand'] ?? ''}: ${item['name']}",
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        "₹${formatPrice(item['formattedSalePrice'])}",
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.teal,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      if (item['formattedPrice'] !=
+                                                          item['formattedSalePrice'])
+                                                        Text(
+                                                          "₹${formatPrice(item['formattedPrice'])}",
+                                                          style: const TextStyle(
+                                                            fontSize: 12,
+                                                            color: Colors.grey,
+                                                            decoration:
+                                                                TextDecoration
+                                                                    .lineThrough,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  if (discount > 0)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            top: 4.0,
+                                                          ),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.red,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          "$discount% OFF",
+                                                          style:
+                                                              const TextStyle(
+                                                                color:
+                                                                    Colors
+                                                                        .white,
+                                                                fontSize: 10,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                left: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.grey.shade200,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.remove,
+                                                      size: 16,
+                                                    ),
+                                                    onPressed:
+                                                        () => decrementCart(
+                                                          item['id'],
+                                                        ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 28,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                        ),
+                                                    child: Text(
+                                                      '${item['quantity']}',
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.add,
+                                                      size: 16,
+                                                    ),
+                                                    onPressed:
+                                                        () => addToCart(
+                                                          item['id'],
+                                                        ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 28,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                    ),
+                    _buildCartSummary(),
+                  ],
+                ),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Image.network(
-          'https://cdn-icons-png.flaticon.com/512/2038/2038854.png',
-          height: 180,
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          "Your cart is empty",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey,
+  Widget _buildCartSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: couponController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter Coupon Code',
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isApplyingCoupon ? null : applyCoupon,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: BorderSide(color: Colors.teal.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  child:
+                      isApplyingCoupon
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.teal,
+                            ),
+                          )
+                          : const Text(
+                            'Apply',
+                            style: TextStyle(color: Colors.teal),
+                          ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          _buildPriceRow("Subtotal", "₹$subtotal"),
+          _buildPriceRow("Shipping", "₹$shipping"),
+          _buildPriceRow("Discount", "- ₹$discount"),
+          const Divider(height: 24, color: Colors.black),
+          _buildPriceRow("Grand Total", "₹$total", bold: true),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+              side: BorderSide(color: Colors.teal.shade300),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text(
+              "Proceed to Checkout",
+              style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
