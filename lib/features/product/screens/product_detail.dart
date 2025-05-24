@@ -39,7 +39,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Future<void> fetchProductDetail() async {
     final url =
-        'http://57.128.166.138:2000/api/v1/line/item/term/${widget.productSlug}';
+        'http://16.171.147.184:2000/api/v1/line/item/term/${widget.productSlug}';
     final response = await dio.get(
       url,
       options: Options(
@@ -75,7 +75,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Future<void> fetchRating(String itemId) async {
     final url =
-        'http://57.128.166.138:2000/api/v1/ratings/line-item/$itemId?size=100&page=1';
+        'http://16.171.147.184:2000/api/v1/ratings/line-item/$itemId?size=100&page=1';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -103,7 +103,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
 
     final url =
-        'http://57.128.166.138:2000/api/v1/ratings/line-item/$productId';
+        'http://16.171.147.184:2000/api/v1/ratings/line-item/$productId';
 
     final body = jsonEncode({
       'rating': selectedRating,
@@ -152,7 +152,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     final productId = product!['id'];
     final url =
-        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/item/$productId';
+        'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId/item/$productId';
 
     final response = await dio.post(
       url,
@@ -190,7 +190,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return;
     }
 
-    final url = Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/add");
+    final url = Uri.parse("http://16.171.147.184:2000/api/v1/cart/$cartId/add");
     final body = jsonEncode({"id": int.parse(productId), "quantity": 1});
 
     final response = await http.post(

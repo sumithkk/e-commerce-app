@@ -29,7 +29,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Future<void> fetchCategories() async {
-    final url = Uri.parse("http://57.128.166.138:2000/api/v1/category");
+    final url = Uri.parse("http://16.171.147.184:2000/api/v1/category");
     final response = await http.get(url, headers: {"isGuest": "true"});
 
     print("\u{1F4E6} [CATEGORY API] Status: ${response.statusCode}");

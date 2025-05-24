@@ -213,7 +213,7 @@ class _RatingWidgetState extends State<RatingWidget> {
   // Fetch the rating data from the API
   Future<void> fetchRating() async {
     final url = Uri.parse(
-      'http://57.128.166.138:2000/api/v1/ratings/line-item/${widget.itemId}?size=100&page=1',
+      'http://16.171.147.184:2000/api/v1/ratings/line-item/${widget.itemId}?size=100&page=1',
     );
 
     try {

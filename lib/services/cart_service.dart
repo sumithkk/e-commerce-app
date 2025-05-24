@@ -9,7 +9,7 @@ class CartService {
     final token = prefs.getString('accessToken');
     final cartId = prefs.getString('cartId');
 
-    final url = Uri.parse('http://57.128.166.138:2000/en/api/v1/cart/$cartId');
+    final url = Uri.parse('http://16.171.147.184:2000/en/api/v1/cart/$cartId');
 
     print('🛒 [GET CART] URL: $url');
     print('🛡️ [GET CART] Token: $token');
@@ -33,7 +33,7 @@ class CartService {
     int lineItemId,
   ) async {
     final url = Uri.parse(
-      'http://57.128.166.138:2000/api/v1/cart/$cartId/remove/$lineItemId',
+      'http://16.171.147.184:2000/api/v1/cart/$cartId/remove/$lineItemId',
     );
     print('🗑️ [REMOVE ITEM] URL: $url');
 
@@ -50,7 +50,7 @@ class CartService {
     required String email,
   }) async {
     final url = Uri.parse(
-      "http://57.128.166.138:2000/api/v1/cart/apply-coupon",
+      "http://16.171.147.184:2000/api/v1/cart/apply-coupon",
     );
 
     final body = jsonEncode({
@@ -80,7 +80,7 @@ class CartService {
     required int itemId,
     required int quantity,
   }) async {
-    final url = Uri.parse('http://57.128.166.138:2000/api/v1/cart/$cartId/add');
+    final url = Uri.parse('http://16.171.147.184:2000/api/v1/cart/$cartId/add');
     final body = jsonEncode({"id": itemId, "quantity": quantity});
 
     print('🔁 [UPDATE QTY] URL: $url');

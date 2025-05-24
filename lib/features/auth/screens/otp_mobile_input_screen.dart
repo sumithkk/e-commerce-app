@@ -72,7 +72,7 @@ class _OtpMobileInputScreenState extends State<OtpMobileInputScreen> {
     print("\u{1F4E6} [CATEGORY API] Status: $body");
 
     final response = await http.post(
-      Uri.parse('http://57.128.166.138:2000/api/v1/admin/auth/send-otp'),
+      Uri.parse('http://16.171.147.184:2000/api/v1/admin/auth/send-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
@@ -106,7 +106,7 @@ class _OtpMobileInputScreenState extends State<OtpMobileInputScreen> {
 
     setState(() => isLoading = true);
     final response = await http.post(
-      Uri.parse('http://57.128.166.138:2000/api/v1/admin/auth/verify-otp'),
+      Uri.parse('http://16.171.147.184:2000/api/v1/admin/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         isEmail ? 'email' : 'phone': input,

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CustomDio {
   static final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://57.128.166.138:2000/api/v1',
+      baseUrl: 'http://16.171.147.184:2000/api/v1',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ),
@@ -31,7 +31,7 @@ class CustomDio {
             if (refreshToken != null) {
               try {
                 final response = await Dio().post(
-                  'http://57.128.166.138:2000/api/v1/auth/refresh',
+                  'http://16.171.147.184:2000/api/v1/auth/refresh',
                   data: {'refreshToken': refreshToken},
                 );
 

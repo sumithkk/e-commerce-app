@@ -53,7 +53,7 @@ class _CartScreenState extends State<CartScreen> {
     debugPrint("\u{1F4EC} [Cart] Status: $token");
     debugPrint("\u{1F4C4} [Cart] Body: $cartId");
 
-    final url = 'http://57.128.166.138:2000/api/v1/cart/$cartId';
+    final url = 'http://16.171.147.184:2000/api/v1/cart/$cartId';
 
     debugPrint("\u{1F4C4} [Cart url ====================] Body: $url");
 
@@ -99,7 +99,7 @@ class _CartScreenState extends State<CartScreen> {
 
     if (token == null || cartId == null) return;
 
-    final url = 'http://57.128.166.138:2000/api/v1/cart/$cartId/remove/$itemId';
+    final url = 'http://16.171.147.184:2000/api/v1/cart/$cartId/remove/$itemId';
     try {
       await dio.delete(
         url,
@@ -121,7 +121,7 @@ class _CartScreenState extends State<CartScreen> {
     if (userId == null || token == null) return;
 
     final url =
-        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/item/$itemId';
+        'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId/item/$itemId';
     try {
       await dio.post(
         url,
@@ -153,7 +153,7 @@ class _CartScreenState extends State<CartScreen> {
 
     setState(() => isApplyingCoupon = true);
 
-    final url = 'http://57.128.166.138:2000/api/v1/cart/apply-coupon';
+    final url = 'http://16.171.147.184:2000/api/v1/cart/apply-coupon';
 
     try {
       final response = await dio.post(
@@ -198,7 +198,7 @@ class _CartScreenState extends State<CartScreen> {
     if (cartId == null) return;
 
     final response = await http.post(
-      Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/add"),
+      Uri.parse("http://16.171.147.184:2000/api/v1/cart/$cartId/add"),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ class _CartScreenState extends State<CartScreen> {
     if (cartId == null) return;
 
     final response = await http.post(
-      Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/remove"),
+      Uri.parse("http://16.171.147.184:2000/api/v1/cart/$cartId/remove"),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

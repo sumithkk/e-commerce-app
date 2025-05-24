@@ -31,7 +31,7 @@ class _SearchHeaderState extends State<SearchHeader> {
     if (query.isEmpty) return [];
 
     final url = Uri.parse(
-      "http://57.128.166.138:2000/api/v1/search/term/$query",
+      "http://16.171.147.184:2000/api/v1/search/term/$query",
     );
     final response = await http.get(url, headers: {"isGuest": "true"});
 

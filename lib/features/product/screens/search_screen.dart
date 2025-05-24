@@ -24,7 +24,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
 
   Future<void> fetchSearchResults() async {
     final url = Uri.parse(
-      'http://57.128.166.138:2000/api/v1/line/item/search?term=${widget.keyword}',
+      'http://16.171.147.184:2000/api/v1/line/item/search?term=${widget.keyword}',
     );
     final response = await http.get(
       url,

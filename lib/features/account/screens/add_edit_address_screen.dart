@@ -49,8 +49,8 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
 
     final url =
         isEditing
-            ? 'http://57.128.166.138:2000/api/v1/address/$addressId'
-            : 'http://57.128.166.138:2000/api/v1/address/customer/$userId';
+            ? 'http://16.171.147.184:2000/api/v1/address/$addressId'
+            : 'http://16.171.147.184:2000/api/v1/address/customer/$userId';
 
     final body = {
       "firstName": firstNameController.text,

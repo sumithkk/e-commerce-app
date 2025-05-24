@@ -36,7 +36,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
       return;
     }
 
-    final url = 'http://57.128.166.138:2000/api/v1/address/customer/$userId';
+    final url = 'http://16.171.147.184:2000/api/v1/address/customer/$userId';
     debugPrint("📦 [Address] Fetching from: $url");
 
     try {
@@ -68,7 +68,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
 
     if (token == null) return;
 
-    final url = 'http://57.128.166.138:2000/api/v1/address/$addressId';
+    final url = 'http://16.171.147.184:2000/api/v1/address/$addressId';
     debugPrint("🗑️ [Delete Address] URL: $url");
 
     try {

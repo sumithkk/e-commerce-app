@@ -19,7 +19,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   Future<void> verifyOtp() async {
     final url = Uri.parse(
-      'http://57.128.166.138:2000/api/v1/admin/auth/verify-otp',
+      'http://16.171.147.184:2000/api/v1/admin/auth/verify-otp',
     );
     final response = await http.post(
       url,

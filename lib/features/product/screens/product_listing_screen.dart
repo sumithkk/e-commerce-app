@@ -47,7 +47,7 @@ class _ProductListPageState extends State<ProductListPage> {
   Future<void> fetchProducts() async {
     setState(() => isLoading = true);
     final url = Uri.parse(
-      "http://57.128.166.138:2000/api/v1/category/term/${widget.categorySlug}?page=$currentPage&size=10&sort=$selectedSort",
+      "http://16.171.147.184:2000/api/v1/category/term/${widget.categorySlug}?page=$currentPage&size=10&sort=$selectedSort",
     );
     final response = await http.get(url, headers: {"isGuest": "true"});
 
@@ -101,7 +101,7 @@ class _ProductListPageState extends State<ProductListPage> {
     }
 
     final url =
-        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/item/$productId';
+        'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId/item/$productId';
 
     final response = await dio.post(
       url,
@@ -136,7 +136,7 @@ class _ProductListPageState extends State<ProductListPage> {
       return;
     }
 
-    final url = Uri.parse("http://57.128.166.138:2000/api/v1/cart/$cartId/add");
+    final url = Uri.parse("http://16.171.147.184:2000/api/v1/cart/$cartId/add");
     final body = jsonEncode({"id": int.parse(productId), "quantity": 1});
 
     final response = await http.post(

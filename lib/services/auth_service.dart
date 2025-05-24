@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String _baseUrl = 'http://57.128.166.138:2000/api/v1/auth';
+  static const String _baseUrl = 'http://16.171.147.184:2000/api/v1/auth';
 
   static Future<http.Response> register({
     required String username,
@@ -37,7 +37,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('http://57.128.166.138:2000/api/v1/auth/login');
+    final url = Uri.parse('http://16.171.147.184:2000/api/v1/auth/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

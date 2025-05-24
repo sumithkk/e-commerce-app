@@ -29,7 +29,7 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
     }
 
     final url = Uri.parse(
-      'http://57.128.166.138:2000/api/v1/line/item/search?term=$term',
+      'http://16.171.147.184:2000/api/v1/line/item/search?term=$term',
     );
     final response = await http.get(
       url,

@@ -49,7 +49,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final url = 'http://57.128.166.138:2000/api/v1/customer/$customerId';
+    final url = 'http://16.171.147.184:2000/api/v1/customer/$customerId';
 
     try {
       final response = await dio.put(

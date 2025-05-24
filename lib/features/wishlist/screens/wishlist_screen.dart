@@ -35,7 +35,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
       return;
     }
 
-    final url = 'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId';
+    final url = 'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId';
     debugPrint("📤 [Wishlist] Fetching from: $url");
 
     try {
@@ -65,7 +65,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
     if (userId == null || token == null) return;
 
     final url =
-        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/remove/$itemId';
+        'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId/remove/$itemId';
     try {
       await dio.delete(
         url,
@@ -86,8 +86,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
     if (token == null || cartId == null) return;
 
     final removeUrl =
-        'http://57.128.166.138:2000/api/v1/wishlist/customer/$userId/remove/$itemId';
-    final addToCartUrl = 'http://57.128.166.138:2000/api/v1/cart/$cartId/add';
+        'http://16.171.147.184:2000/api/v1/wishlist/customer/$userId/remove/$itemId';
+    final addToCartUrl = 'http://16.171.147.184:2000/api/v1/cart/$cartId/add';
 
     try {
       await dio.post(
